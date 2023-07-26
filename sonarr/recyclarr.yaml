@@ -27,14 +27,10 @@ sonarr:
       
       - trash_ids:
           - c9eafd50846d299b862ca9bb6ea91950 # x265
-        quality_profiles:
-          - name: Any
-            score: 2000
-      - trash_ids:
           - cddfb4e32db826151d97352b8e37c648 # x264
         quality_profiles:
           - name: Any
-            score: 1000
+            score: 2000
       - trash_ids:
           # Streaming Services
           - d660701077794679fd59e8bdf4ce3a29 # AMZN
@@ -63,13 +59,9 @@ sonarr:
           - 5d2317d99af813b6529c7ebf01c83533 # VDL
         quality_profiles:
           - name: Any
-            score: 300
+            score: 200
       - trash_ids:
           - 290078c8b266272a5cc8e251b5e2eb0b # 1080p
-        quality_profiles:
-          - name: Any
-            score: 100
-      - trash_ids:
           # Audio Channels
           - 3fbafa924f361e66fbc6187af82dfa85 # 5.1 Surround
           - 9fb6d778592c293467437593ef394bf1 # 6.1 Surround
@@ -82,7 +74,7 @@ sonarr:
           - 026d5aadd1a6b4e550b134cb6c72b3ca # Uncensored
         quality_profiles:
           - name: Any
-            score: 75
+            score: 100
       - trash_ids:
           # Audio Channels
           - 834e534f103938853ffced4203b53e72 # 2.0 Stereo
@@ -92,7 +84,7 @@ sonarr:
           - 63487786a8b01b7f20dd2bc90dd4a477 # DD+
         quality_profiles:
           - name: Any
-            score: 35
+            score: 75
       - trash_ids:
           # Audio Advanced #2
           - dbe00161b08a25ac6154c55f95e6318d # DD
@@ -128,7 +120,6 @@ sonarr:
           - 9c14d194486c4014d422adc64092d794 # Dubs Only
           - 2016d1676f5ee13a5b7257ff86ac9a93 # SDR
           # Optional
-          - 82d40da2bc6923f41e14394075dd4b03 # No-RlsGroup
           - e1a997ddb54e3ecbfe06341ad323c458 # Obfuscated
           - 2016d1676f5ee13a5b7257ff86ac9a93 # SDR
           - 9b64dff695c2115facf1b6ea59c9bd07 # x265 (no HDR/DV)
@@ -159,6 +150,7 @@ sonarr:
           - 7ba05c6e0e14e793538174c679126996 # Multi
           # Optional
           - 90501962793d580d011511155c97e4e5 # VP9
+          - 82d40da2bc6923f41e14394075dd4b03 # No-RlsGroup
         quality_profiles:
           - name: Any
             score: -10

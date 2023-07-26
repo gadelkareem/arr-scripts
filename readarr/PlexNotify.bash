@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-scriptVersion="1.1"
-scriptName="PlexNotify"
+scriptVersion=1.0
+rootFolderPath="$(dirname "$readarr_author_path")"
 
 #### Import Settings
 source /config/extended.conf
-#### Import Functions
-source /config/extended/functions
-#### Create Log File
-logfileSetup
 
-if [ -z "$lidarr_artist_path" ]; then
-	lidarr_artist_path="$1"
-	notfidedBy=Extended_Script
-else
-	notfidedBy=Lidarr
+# auto-clean up log file to reduce space usage
+if [ -f "/config/logs/PlexNotify.txt" ]; then
+	find /config/logs -type f -name "PlexNotify.txt" -size +1024k -delete
 fi
-lidarrRootFolderPath="$(dirname "$lidarr_artist_path")"
 
+exec &> >(tee -a "/config/logs/PlexNotify.txt")
+chmod 666 "/config/logs/PlexNotify.txt"
 
-if [ "$lidarr_eventtype" == "Test" ]; then
+log () {
+    m_time=`date "+%F %T"`
+    echo $m_time" :: PlexNotify :: $scriptVersion :: "$1
+}
+
+if [ "$readarr_eventtype" == "Test" ]; then
 	log "Tested Successfully"
 	exit 0	
 fi
@@ -59,21 +59,21 @@ else
 	exit 1
 fi
 
-if echo "$plexLibraryData" | grep "\"@path\": \"$lidarrRootFolderPath" | read; then
+if echo "$plexLibraryData" | grep "\"@path\": \"$rootFolderPath" | read; then
 	sleep 0.01
 else
-	log "ERROR: No Plex Library found containing path \"$lidarrRootFolderPath\""
-	log "ERROR: Add \"$lidarrRootFolderPath\" as a folder to a Plex Music Library"
+	log "ERROR: No Plex Library found containing path \"$rootFolderPath\""
+	log "ERROR: Add \"$rootFolderPath\" as a folder to a Plex Music Library"
 	exit 1
 fi
 
 for key in ${!plexKeys[@]}; do
 	plexKey="${plexKeys[$key]}"
 	plexKeyLibraryData=$(echo "$plexLibraryData" | jq -r "select(.\"@key\"==\"$plexKey\")")
-	if echo "$plexKeyLibraryData" | grep "\"@path\": \"$lidarrRootFolderPath\"" | read; then
-		plexFolderEncoded="$(jq -R -r @uri <<<"$lidarr_artist_path")"
+	if echo "$plexKeyLibraryData" | grep "\"@path\": \"$rootFolderPath" | read; then
+		plexFolderEncoded="$(jq -R -r @uri <<<"$readarr_author_path")"
 		curl -s "$plexUrl/library/sections/$plexKey/refresh?path=$plexFolderEncoded&X-Plex-Token=$plexToken"
-		log  "Plex Scan notification sent! ($plexKey :: $lidarr_artist_path)"
+		log  "Plex Scan notification sent! ($plexKey :: $readarr_author_path)"
 	fi
 done
 

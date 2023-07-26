@@ -1,113 +1,60 @@
-#!/usr/bin/env bash
-scriptVersion="1.0.5"
+#!/usr/bin/with-contenv bash
+scriptVersion="2.5"
+scriptName="Audio"
 
+### Import Settings
+source /config/extended.conf
+#### Import Functions
+source /config/extended/functions
 
-getArrAppInfo () {
-  # Get Arr App information
-  if [ -z "$arrUrl" ] || [ -z "$arrApiKey" ]; then
-    arrUrlBase="$(cat /config/config.xml | xq | jq -r .Config.UrlBase)"
-    if [ "$arrUrlBase" == "null" ]; then
-      arrUrlBase=""
-    else
-      arrUrlBase="/$(echo "$arrUrlBase" | sed "s/\///g")"
-    fi
-    arrName="$(cat /config/config.xml | xq | jq -r .Config.InstanceName)"
-    arrApiKey="$(cat /config/config.xml | xq | jq -r .Config.ApiKey)"
-    arrPort="$(cat /config/config.xml | xq | jq -r .Config.Port)"
-    arrUrl="http://127.0.0.1:${arrPort}${arrUrlBase}"
+verifyConfig () {
+
+  if [ "$enableAudio" != "true" ]; then
+    log "Script is not enabled, enable by setting enableAudio to \"true\" by modifying the \"/config/extended.conf\" config file..."
+    log "Sleeping (infinity)"
+    sleep infinity
   fi
+
+  if [ -z "$audioScriptInterval" ]; then
+    audioScriptInterval="15m"
+  fi
+
+  if [ -z "$downloadPath" ]; then
+    downloadPath="/config/extended/downloads"
+  fi
+
+  audioPath="$downloadPath/audio"
 }
-
-verifyApiAccess () {
-  until false
-  do
-    arrApiTest=""
-    arrApiVersion=""
-    if [ "$arrName" == "Sonarr" ] || [ "$arrName" == "Radarr" ]; then
-      arrApiVersion="v3"
-    elif [ "$arrName" == "Lidarr" ] || [ "$arrName" == "Readarr" ]; then
-      arrApiVersion="v1"
-    fi
-    arrApiTest=$(curl -s "$arrUrl/api/$arrApiVersion/system/status?apikey=$arrApiKey" | jq -r .instanceName)
-    if [ "$arrApiTest" == "$arrName" ]; then
-      break
-    else
-      log "$arrName is not ready, sleeping until valid response..."
-      sleep 1
-    fi
-  done
-}
-
-# Debugging settings
-dlClientSource="deezer"
-topLimit="3"
-addDeezerTopArtists="false"
-addDeezerTopAlbumArtists="false"
-addDeezerTopTrackArtists="false"
-audioLyricType="both"
-audioFormat="native"
-audioBitrate="lossless"
-addRelatedArtists="false"
-numberOfRelatedArtistsToAddPerArtist="1"
-beetsMatchPercentage="90"
-requireQuality="false"
-searchSort="album"
-arlToken=""
-matchDistance=10
-enableBeetsTagging=true
-downloadPath=/config/extended/downloads
-
-sleepTimer=0.5
-tidaldlFail=0
-deemixFail=0
-
-log () {
-	m_time=`date "+%F %T"`
-	echo $m_time" :: Audio :: $scriptVersion :: "$1
-}
-
-# auto-clean up log file to reduce space usage
-if [ -f "/config/logs/Audio.txt" ]; then
-	find /config/logs -type f -name "Audio.txt" -size +5000k -delete
-	sleep 0.01
-fi
-touch "/config/logs/Audio.txt"
-exec &> >(tee -a "/config/logs/Audio.txt")
-chmod 666 "/config/logs/Audio.txt"
-
-
-log "-----------------------------------------------------------------------------"
-log " |~) _ ._  _| _ ._ _ |\ |o._  o _ |~|_|_|"
-log " |~\(_|| |(_|(_)| | || \||| |_|(_||~| | |<"
-log " Presents: lidarr-extended ($scriptVersion)"
-log " Docker Version: $dockerVersion"
-log " May the beats be with you!"
-log "-----------------------------------------------------------------------------"
-log "Donate: https://github.com/sponsors/RandomNinjaAtk"
-log "Project: https://github.com/RandomNinjaAtk/docker-lidarr-extended"
-log "Support: https://github.com/RandomNinjaAtk/docker-lidarr-extended/discussions"
-log "-----------------------------------------------------------------------------"
-sleep 5
-log ""
-log "Lift off in..."; sleep 0.5
-log "5"; sleep 1
-log "4"; sleep 1
-log "3"; sleep 1
-log "2"; sleep 1
-log "1"; sleep 1
-
-
-
-if [ ! -d /config/xdg ]; then
-	mkdir -p /config/xdg
-fi
 
 Configuration () {
-	processdownloadid="$(ps -A -o pid,cmd|grep "Audio.sh" | grep -v grep | head -n 1 | awk '{print $1}')"
-	log "To kill script, use the following command:"
-	log "kill -9 $processdownloadid"
-	sleep 2
+	sleepTimer=0.5
+	tidaldlFail=0
+	deemixFail=0
+	log "-----------------------------------------------------------------------------"
+	log " |~) _ ._  _| _ ._ _ |\ |o._  o _ |~|_|_|"
+	log " |~\(_|| |(_|(_)| | || \||| |_|(_||~| | |<"
+	log " Presents: $scriptName ($scriptVersion)"
+	log " May the beats be with you!"
+	log "-----------------------------------------------------------------------------"
+	log "Donate: https://github.com/sponsors/RandomNinjaAtk"
+	log "Project: https://github.com/RandomNinjaAtk/arr-scripts"
+	log "Support: https://github.com/RandomNinjaAtk/arr-scripts/discussions"
+	log "-----------------------------------------------------------------------------"
+	sleep 5
+	log ""
+	log "Lift off in..."; sleep 0.5
+	log "5"; sleep 1
+	log "4"; sleep 1
+	log "3"; sleep 1
+	log "2"; sleep 1
+	log "1"; sleep 1
 	
+	
+	
+	if [ ! -d /config/xdg ]; then
+		mkdir -p /config/xdg
+	fi
+ 
 	if [ -z $topLimit ]; then
 		topLimit=10
 	fi
@@ -139,7 +86,7 @@ Configuration () {
 		log "Add Deezer Related Artists is disabled (enable by setting addRelatedArtists=true)"
 	fi
 	
-	log "Download Location: $"
+	log "Download Location: $audioPath"
 
 
 	log "Output format: $audioFormat"
@@ -150,8 +97,9 @@ Configuration () {
 		else
 			audioBitrateText="${audioBitrate}k"
 		fi
-	fi
-
+	else
+		audioBitrateText="$audioBitrate"
+  	fi
 	log "Output bitrate: $audioBitrateText"
 
 	if [ "$requireQuality" == "true" ]; then
@@ -188,7 +136,7 @@ Configuration () {
 }
 
 DownloadClientFreyr () {
-	freyr --no-bar -d $downloadPath/incomplete deezer:album:$1
+	freyr --no-bar -d $audioPath/incomplete deezer:album:$1
 }
 
 DownloadFormat () {
@@ -261,12 +209,12 @@ DownloadFormat () {
 
 DownloadFolderCleaner () {
 	# check for completed download folder
-	if [ -d "$downloadPath/complete" ]; then
+	if [ -d "$audioPath/complete" ]; then
 		log "Removing prevously completed downloads that failed to import..."
 		# check for completed downloads older than 1 day
-		if find "$downloadPath"/complete -mindepth 1 -type d -mtime +1 | read; then
+		if find "$audioPath"/complete -mindepth 1 -type d -mtime +1 | read; then
 			# delete completed downloads older than 1 day, these most likely failed to import due to Lidarr failing to match
-			find "$downloadPath"/complete -mindepth 1 -type d -mtime +1 -exec rm -rf "{}" \; &>/dev/null
+			find "$audioPath"/complete -mindepth 1 -type d -mtime +1 -exec rm -rf "{}" \; &>/dev/null
 		fi
 	fi
 }
@@ -299,7 +247,7 @@ TidalClientSetup () {
 	fi
 	
 	TidaldlStatusCheck
-	tidal-dl -o "$downloadPath"/incomplete
+	tidal-dl -o "$audioPath"/incomplete
 	DownloadFormat
 
 	if [ ! -f /config/xdg/.tidal-dl.token.json ]; then
@@ -322,11 +270,11 @@ TidalClientSetup () {
 		rm /config/extended/cache/tidal/*-albums.json &>/dev/null
 	fi
 	
-	if [ ! -d "$downloadPath/incomplete" ]; then
-		mkdir -p "$downloadPath"/incomplete
-		chmod 777 "$downloadPath"/incomplete
+	if [ ! -d "$audioPath/incomplete" ]; then
+		mkdir -p "$audioPath"/incomplete
+		chmod 777 "$audioPath"/incomplete
 	else
-		rm -rf "$downloadPath"/incomplete/*
+		rm -rf "$audioPath"/incomplete/*
 	fi
 	
 	TidaldlStatusCheck
@@ -360,18 +308,18 @@ DownloadProcess () {
 
 
 	# Create Required Directories	
-	if [ ! -d "$downloadPath/incomplete" ]; then
-		mkdir -p "$downloadPath"/incomplete
-		chmod 777 "$downloadPath"/incomplete
+	if [ ! -d "$audioPath/incomplete" ]; then
+		mkdir -p "$audioPath"/incomplete
+		chmod 777 "$audioPath"/incomplete
 	else
-		rm -rf "$downloadPath"/incomplete/*
+		rm -rf "$audioPath"/incomplete/*
 	fi
 	
-	if [ ! -d "$downloadPath/complete" ]; then
-		mkdir -p "$downloadPath"/complete
-		chmod 777 "$downloadPath"/complete
+	if [ ! -d "$audioPath/complete" ]; then
+		mkdir -p "$audioPath"/complete
+		chmod 777 "$audioPath"/complete
 	else
-		rm -rf "$downloadPath"/complete/*
+		rm -rf "$audioPath"/complete/*
 	fi
 
 	if [ ! -d "/config/extended/logs" ]; then
@@ -406,7 +354,7 @@ DownloadProcess () {
 
 	downloadedAlbumTitleClean="$(echo "$4" | sed -e "s%[^[:alpha:][:digit:]._' ]% %g" -e "s/  */ /g" | sed 's/^[.]*//' | sed  's/[.]*$//g' | sed  's/^ *//g' | sed 's/ *$//g')"
     	
-	if find "$downloadPath"/complete -type d -iname "$lidarrArtistNameSanitized-$downloadedAlbumTitleClean ($3)-*-$1-$2" | read; then
+	if find "$audioPath"/complete -type d -iname "$lidarrArtistNameSanitized-$downloadedAlbumTitleClean ($3)-*-$1-$2" | read; then
 		log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: ERROR :: Previously Downloaded..."
 		return
     fi
@@ -454,7 +402,7 @@ DownloadProcess () {
 			if [ -z $arlToken ]; then
 				DownloadClientFreyr $1
 			else
-				deemix -b $deemixQuality -p "$downloadPath"/incomplete "https://www.deezer.com/album/$1"
+				deemix -b $deemixQuality -p "$audioPath"/incomplete "https://www.deezer.com/album/$1"
 			fi
 			
 			if [ -d "/tmp/deemix-imgs" ]; then
@@ -462,7 +410,7 @@ DownloadProcess () {
 			fi
 
 			# Verify Client Works...
-			clientTestDlCount=$(find "$downloadPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | wc -l)
+			clientTestDlCount=$(find "$audioPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | wc -l)
 			if [ $clientTestDlCount -le 0 ]; then
 				# Add +1 to failed attempts
 				deemixFail=$(( $deemixFail + 1))
@@ -477,7 +425,7 @@ DownloadProcess () {
 				log "DEEZER :: ERROR :: Please review log for errors in client"
 				log "DEEZER :: ERROR :: Try updating your ARL Token to possibly resolve the issue..."
 				log "DEEZER :: ERROR :: Exiting..."
-				rm -rf "$downloadPath"/incomplete/*
+				rm -rf "$audioPath"/incomplete/*
 				NotifyWebhook "FatalError" "DEEZER not authenticated but configured"
 				exit
 			fi
@@ -486,10 +434,10 @@ DownloadProcess () {
 		if [ "$2" == "TIDAL" ]; then
 			TidaldlStatusCheck
 
-			tidal-dl -q $tidalQuality -o "$downloadPath/incomplete" -l "$1"
+			tidal-dl -q $tidalQuality -o "$audioPath/incomplete" -l "$1"
 
 			# Verify Client Works...
-			clientTestDlCount=$(find "$downloadPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | wc -l)
+			clientTestDlCount=$(find "$audioPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | wc -l)
 			if [ $clientTestDlCount -le 0 ]; then
 				# Add +1 to failed attempts
 				tidaldlFail=$(( $tidaldlFail + 1))
@@ -506,13 +454,13 @@ DownloadProcess () {
 				log "TIDAL :: ERROR :: Download failed"
 				log "TIDAL :: ERROR :: You will need to re-authenticate on next script run..."
 				log "TIDAL :: ERROR :: Exiting..."
-				rm -rf "$downloadPath"/incomplete/*
+				rm -rf "$audioPath"/incomplete/*
 				NotifyWebhook "FatalError" "TIDAL not authenticated but configured"
 				exit
 			fi
 		fi
 
-		find "$downloadPath/incomplete" -type f -iname "*.flac" -newer "/temp-download" -print0 | while IFS= read -r -d '' file; do
+		find "$audioPath/incomplete" -type f -iname "*.flac" -newer "/temp-download" -print0 | while IFS= read -r -d '' file; do
 			audioFlacVerification "$file"
 			if [ "$verifiedFlacFile" == "0" ]; then
 				log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Flac Verification :: $file :: Verified"
@@ -522,7 +470,7 @@ DownloadProcess () {
 			fi
 		done
 
-		downloadCount=$(find "$downloadPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|m4a\|mp3\)" | wc -l)
+		downloadCount=$(find "$audioPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|m4a\|mp3\)" | wc -l)
 		if [ "$downloadCount" -ne "$5" ]; then
 			log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: ERROR :: download failed, missing tracks..."
 			completedVerification="false"
@@ -534,8 +482,8 @@ DownloadProcess () {
 		if [ "$completedVerification" == "true" ]; then
 			break
 		elif [ "$downloadTry" == "2" ]; then
-			if [ -d "$downloadPath"/incomplete ]; then
-				rm -rf "$downloadPath"/incomplete/*
+			if [ -d "$audioPath"/incomplete ]; then
+				rm -rf "$audioPath"/incomplete/*
 			fi
 			break
 		else
@@ -546,16 +494,16 @@ DownloadProcess () {
 
 	# Consolidate files to a single folder
 	log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Consolidating files to single folder"
-	find "$downloadPath/incomplete" -type f -exec mv "{}" "$downloadPath"/incomplete/ \;
-	find $downloadPath/incomplete/ -type d -mindepth 1 -maxdepth 1 -exec rm -rf {} \;
+	find "$audioPath/incomplete" -type f -exec mv "{}" "$audioPath"/incomplete/ \; 2>/dev/null
+	find $audioPath/incomplete/ -type d -mindepth 1 -maxdepth 1 -exec rm -rf {} \; 2>/dev/null
 
-	downloadCount=$(find "$downloadPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|m4a\|mp3\)" | wc -l)
+	downloadCount=$(find "$audioPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|m4a\|mp3\)" | wc -l)
 	if [ "$downloadCount" -gt "0" ]; then
 		# Check download for required quality (checks based on file extension)
-		DownloadQualityCheck "$downloadPath/incomplete" "$2"
+		DownloadQualityCheck "$audioPath/incomplete" "$2"
 	fi
 	
-	downloadCount=$(find "$downloadPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|m4a\|mp3\)" | wc -l)
+	downloadCount=$(find "$audioPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|m4a\|mp3\)" | wc -l)
 	if [ "$downloadCount" -ne "$5" ]; then
 		log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: ERROR :: All download Attempts failed..."
 		log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Logging $1 as failed download..."
@@ -579,26 +527,13 @@ DownloadProcess () {
 		touch /config/extended/logs/downloaded/tidal/$1
 	fi
 
-	# Correct Artist/albumartist Flac files
-	find "$downloadPath/incomplete" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' file; do
-		log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Setting ARTIST/ALBUMARTIST tag to \"$lidarrArtistName\" :: $file"
-		metaflac --remove-tag=ALBUMARTIST "$file"
-		metaflac --remove-tag=ARTIST "$file"
-		metaflac --remove-tag=MUSICBRAINZ_ARTISTID "$file"
-		metaflac --remove-tag=MUSICBRAINZ_ALBUMARTISTID "$file"
-		metaflac --set-tag=ALBUMARTIST="$lidarrArtistName" "$file"
-		metaflac --set-tag=ARTIST="$lidarrArtistName" "$file"
-		metaflac --set-tag=MUSICBRAINZ_ARTISTID="$lidarrArtistForeignArtistId" "$file"
-		metaflac --set-tag=MUSICBRAINZ_ALBUMARTISTID="$lidarrArtistForeignArtistId" "$file"
-	done
-
 	# Tag with beets
 	if [ "$enableBeetsTagging" == "true" ]; then
 		if [ -f /config/extended/beets-error ]; then
 			rm /config/extended/beets-error
 		fi
 		log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Processing files with beets..."
-		ProcessWithBeets "$downloadPath/incomplete"
+		ProcessWithBeets "$audioPath/incomplete"
 
 		if [ -f /config/extended/beets-error ]; then
 			return
@@ -606,13 +541,12 @@ DownloadProcess () {
 	fi
 
 	# Embed Lyrics into Flac files
-	find "$downloadPath/incomplete" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' file; do
+	find "$audioPath/incomplete" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' file; do
 		lrcFile="${file%.*}.lrc"
 		if [ -f "$lrcFile" ]; then
 			log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Embedding lyrics (lrc) into $file"
 			metaflac --remove-tag=Lyrics "$file"
 			metaflac --set-tag-from-file="Lyrics=$lrcFile" "$file"
-			rm "$lrcFile"
 		fi
 	done
 	
@@ -638,7 +572,7 @@ DownloadProcess () {
 			extension="m4a"
 		fi
 
-		find "$downloadPath/incomplete" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' audio; do
+		find "$audioPath/incomplete" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' audio; do
 			file="${audio}"
 			filename="$(basename "$audio")"
 			foldername="$(dirname "$audio")"
@@ -666,65 +600,65 @@ DownloadProcess () {
 	fi
 	
 	if [ "$enableReplaygainTags" == "true" ]; then
-		AddReplaygainTags "$downloadPath/incomplete"
+		AddReplaygainTags "$audioPath/incomplete"
 	else
 		log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Replaygain Tagging Disabled (set enableReplaygainTags=true to enable...)"
 	fi
 	
-	albumquality="$(find "$downloadPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | head -n 1 | egrep -i -E -o "\.{1}\w*$" | sed  's/\.//g')"
+	albumquality="$(find "$audioPath"/incomplete/ -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | head -n 1 | egrep -i -E -o "\.{1}\w*$" | sed  's/\.//g')"
 	downloadedAlbumFolder="$lidarrArtistNameSanitized-$downloadedAlbumTitleClean ($3)-${albumquality^^}-$1-$2"
 
-	find "$downloadPath/incomplete" -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" -print0 | while IFS= read -r -d '' audio; do
+	find "$audioPath/incomplete" -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" -print0 | while IFS= read -r -d '' audio; do
         file="${audio}"
         filenoext="${file%.*}"
         filename="$(basename "$audio")"
         extension="${filename##*.}"
         filenamenoext="${filename%.*}"
-        if [ ! -d "$downloadPath/complete" ]; then
-            mkdir -p "$downloadPath"/complete
-            chmod 777 "$downloadPath"/complete
+        if [ ! -d "$audioPath/complete" ]; then
+            mkdir -p "$audioPath"/complete
+            chmod 777 "$audioPath"/complete
         fi
-        mkdir -p "$downloadPath/complete/$downloadedAlbumFolder"
-        mv "$file" "$downloadPath/complete/$downloadedAlbumFolder"/
+        mkdir -p "$audioPath/complete/$downloadedAlbumFolder"
+        mv "$file" "$audioPath/complete/$downloadedAlbumFolder"/
         
     done
-	chmod -R 777 "$downloadPath"/complete
+	chmod -R 777 "$audioPath"/complete
 	
-	if [ -d "$downloadPath/complete/$downloadedAlbumFolder" ]; then
-		NotifyLidarrForImport "$downloadPath/complete/$downloadedAlbumFolder"
+	if [ -d "$audioPath/complete/$downloadedAlbumFolder" ]; then
+		NotifyLidarrForImport "$audioPath/complete/$downloadedAlbumFolder"
 		
 		LidarrTaskStatusCheck
 		CheckLidarrBeforeImport "$checkLidarrAlbumId"
 		if [ "$alreadyImported" == "true" ]; then
 			log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Already Imported, skipping..."
-			rm -rf "$downloadPath"/incomplete/*
+			rm -rf "$audioPath"/incomplete/*
 		fi
 	fi
 	
-	if [ -d "$downloadPath/complete/$downloadedAlbumFolder" ]; then
-		NotifyLidarrForImport "$downloadPath/complete/$downloadedAlbumFolder"
+	if [ -d "$audioPath/complete/$downloadedAlbumFolder" ]; then
+		NotifyLidarrForImport "$audioPath/complete/$downloadedAlbumFolder"
 		
 		LidarrTaskStatusCheck
 		CheckLidarrBeforeImport "$checkLidarrAlbumId"
 		if [ "$alreadyImported" == "true" ]; then
 			log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Already Imported, skipping..."
-			rm -rf "$downloadPath"/incomplete/*
+			rm -rf "$audioPath"/incomplete/*
 		fi
 	fi
 	
-	if [ -d "$downloadPath/complete/$downloadedAlbumFolder" ]; then
-		NotifyLidarrForImport "$downloadPath/complete/$downloadedAlbumFolder"
+	if [ -d "$audioPath/complete/$downloadedAlbumFolder" ]; then
+		NotifyLidarrForImport "$audioPath/complete/$downloadedAlbumFolder"
 		
 		LidarrTaskStatusCheck
 		CheckLidarrBeforeImport "$checkLidarrAlbumId"
 		if [ "$alreadyImported" == "true" ]; then
 			log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: Already Imported, skipping..."
-			rm -rf "$downloadPath"/incomplete/*
+			rm -rf "$audioPath"/incomplete/*
 		fi
 	fi
 
-	if [ -d "$downloadPath/complete/$downloadedAlbumFolder" ]; then
-		rm -rf "$downloadPath"/incomplete/*
+	if [ -d "$audioPath/complete/$downloadedAlbumFolder" ]; then
+		rm -rf "$audioPath"/incomplete/*
 	fi
 	# NotifyPlexToScan
 }
@@ -751,7 +685,7 @@ ProcessWithBeets () {
 	beet -c /config/extended/beets-config.yaml -l /config/extended/beets-library.blb -d "$1" import -qC "$1"
 	if [ $(find "$1" -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" -newer "/config/beets-match" | wc -l) -gt 0 ]; then
 		log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: SUCCESS: Matched with beets!"
-		find "$downloadPath/incomplete" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' file; do
+		find "$audioPath/incomplete" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' file; do
 			getArtistCredit="$(ffprobe -loglevel 0 -print_format json -show_format -show_streams "$file" | jq -r ".format.tags.ARTIST_CREDIT" | sed "s/null//g" | sed "/^$/d")"
 			metaflac --remove-tag=ALBUMARTIST "$file"
 			metaflac --remove-tag=ALBUMARTIST_CREDIT "$file"
@@ -778,7 +712,7 @@ ProcessWithBeets () {
 	fi
 
 	# Get file metadata
-	GetFile=$(find "$downloadPath/incomplete" -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | head -n1)
+	GetFile=$(find "$audioPath/incomplete" -type f -regex ".*/.*\.\(flac\|opus\|m4a\|mp3\)" | head -n1)
 	extension="${GetFile##*.}"
 	if [ "$extension" == "opus" ]; then
 		matchedTags=$(ffprobe -hide_banner -loglevel fatal -show_error -show_format -show_streams -show_programs -show_chapters -show_private_data -print_format json "$GetFile" | jq -r ".streams[].tags")
@@ -818,7 +752,7 @@ ProcessWithBeets () {
 	if [ ${checkLidarrAlbumPercentOfTracks%%.*} -ge 100 ]; then
 		if [ "$wantedAlbumListSource" == "missing" ]; then
 			log "$page :: $wantedAlbumListSource :: $processNumber of $wantedListAlbumTotal :: $lidarrArtistName :: $lidarrAlbumTitle :: $lidarrAlbumType :: ERROR :: Already Imported Album (Missing)"
-			rm -rf "$downloadPath/incomplete"/*
+			rm -rf "$audioPath/incomplete"/*
 			touch /config/extended/beets-error
 			return
 		else
@@ -938,11 +872,11 @@ DeemixClientSetup () {
 		rm /config/extended/cache/deezer/*-albums.json &>/dev/null
 	fi
 	
-	if [ ! -d "$downloadPath/incomplete" ]; then
-		mkdir -p "$downloadPath"/incomplete
-		chmod 777 "$downloadPath"/incomplete
+	if [ ! -d "$audioPath/incomplete" ]; then
+		mkdir -p "$audioPath"/incomplete
+		chmod 777 "$audioPath"/incomplete
 	else
-		rm -rf "$downloadPath"/incomplete/*
+		rm -rf "$audioPath"/incomplete/*
 	fi
 
 	#log "DEEZER :: Upgrade deemix to the latest..."
@@ -1913,14 +1847,16 @@ AudioProcess () {
   log "Script end..."
 }
 
-echo "Starting Script...."
+log "Starting Script...."
 for (( ; ; )); do
 	let i++
-  getArrAppInfo
-  verifyApiAccess
+ 	logfileSetup
+    	verifyConfig
+	getArrAppInfo
+	verifyApiAccess
 	AudioProcess
-	echo "Script sleeping for 15 minutes..."
-	sleep 15m
+	log "Script sleeping for $audioScriptInterval..."
+	sleep $audioScriptInterval
 done
 
 exit

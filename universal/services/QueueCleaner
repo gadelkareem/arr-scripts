@@ -1,53 +1,33 @@
 #!/usr/bin/with-contenv bash
-scriptVersion="1.0.5"
+scriptVersion="1.7"
+scriptName="QueueCleaner"
 
-######## Settings
-scriptInterval="15m"
+#### Import Settings
+source /config/extended.conf
+#### Import Functions
+source /config/extended/functions
+#### Create Log File
+logfileSetup
+#### Check Arr App
+getArrAppInfo
+verifyApiAccess
 
-######## Package dependencies installation
-PackageInstallation () {
-  if [ ! -f "/config/logs/QueueCleaner.txt" ]; then
-    echo "Installing Required Packages..."
-    apk add -U --update --no-cache curl jq python3-dev py3-pip &>/dev/null
-    pip install --upgrade --no-cache-dir -U yq &>/dev/null
-    echo "Done"
-  fi
+verifyConfig () {
+	#### Import Settings
+	source /config/extended.conf
+	
+	if [ "$enableQueueCleaner" != "true" ]; then
+		log "Script is not enabled, enable by setting enableQueueCleaner to \"true\" by modifying the \"/config/extended.conf\" config file..."
+		log "Sleeping (infinity)"
+		sleep infinity
+	fi
+
+	if [ -z "$queueCleanerScriptInterval" ]; then
+	    queueCleanerScriptInterval="15m"
+	fi
 }
-
-# Logging output function
-log () {
-  m_time=`date "+%F %T"`
-  echo $m_time" :: QueueCleaner :: $scriptVersion :: "$1
-}
-
-# auto-clean up log file to reduce space usage
-if [ -f "/config/logs/QueueCleaner.txt" ]; then
-  find /config/logs -type f -name "QueueCleaner.txt" -size +1024k -delete
-fi
-
-if [ ! -f "/config/logs/QueueCleaner.txt" ]; then
-    touch "/config/logs/QueueCleaner.txt"
-    chmod 666 "/config/logs/QueueCleaner.txt"
-fi
-exec &> >(tee -a "/config/logs/QueueCleaner.txt")
 
 QueueCleanerProcess () {
-  # Get Arr App information
-  if [ -z "$arrUrl" ] || [ -z "$arrApiKey" ]; then
-    arrUrlBase="$(cat /config/config.xml | xq | jq -r .Config.UrlBase)"
-    if [ "$arrUrlBase" == "null" ]; then
-      arrUrlBase=""
-    else
-      arrUrlBase="/$(echo "$arrUrlBase" | sed "s/\///g")"
-    fi
-    arrName="$(cat /config/config.xml | xq | jq -r .Config.InstanceName)"
-    arrApiKey="$(cat /config/config.xml | xq | jq -r .Config.ApiKey)"
-    arrPort="$(cat /config/config.xml | xq | jq -r .Config.Port)"
-    arrUrl="http://127.0.0.1:${arrPort}${arrUrlBase}"
-  fi
-
-  verifyApiAccess
-
   # Sonarr
   if [ "$arrPort" == "8989" ]; then
     arrQueueData="$(curl -s "$arrUrl/api/v3/queue?page=1&pagesize=200&sortDirection=descending&sortKey=progress&includeUnknownSeriesItems=true&apikey=${arrApiKey}" | jq -r .records[])"
@@ -98,40 +78,14 @@ QueueCleanerProcess () {
   fi
 }
 
-verifyApiAccess () {
-  until false
-  do
-    arrApiTest=""
-    arrApiVersion=""
-    if [ "$arrName" == "Sonarr" ] || [ "$arrName" == "Radarr" ]; then
-      arrApiVersion="v3"
-    elif [ "$arrName" == "Lidarr" ] || [ "$arrName" == "Readarr" ]; then
-      arrApiVersion="v1"
-    fi
-    arrApiTest=$(curl -s "$arrUrl/api/$arrApiVersion/system/status?apikey=$arrApiKey" | jq -r .instanceName)
-    if [ "$arrApiTest" == "$arrName" ]; then
-      break
-    else
-      log "$arrName is not ready, sleeping until valid response..."
-      sleep 1
-    fi
-  done
-}
-
-# Install packages
-PackageInstallation
-
-arrName="$(cat /config/config.xml | xq | jq -r .Config.InstanceName)"
-if [ "$arrName" == "Sonarr" ] || [ "$arrName" == "Radarr" ] || [ "$arrName" == "Lidarr" ] || [ "$arrName" == "Readarr" ]; then
-  for (( ; ; )); do
-    let i++
-    log "Starting..."
-    QueueCleanerProcess
-    log "Sleeping $scriptInterval..."
-    sleep $scriptInterval
-  done
-else
-  log "ERROR :: Arr app not detected, exiting..."
-fi
+for (( ; ; )); do
+  let i++
+  logfileSetup
+  verifyConfig
+  log "Starting..."
+  QueueCleanerProcess
+  log "Sleeping $queueCleanerScriptInterval..."
+  sleep $queueCleanerScriptInterval
+done
 
 exit

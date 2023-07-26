@@ -58,7 +58,7 @@ curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/sonarr/In
 echo "Done"
 
 echo "Download Recyclarr service..."
-curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal/services/Recycalarr -o /custom-services.d/Recyclarr
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal/services/Recyclarr -o /custom-services.d/Recyclarr
 echo "Done"
 
 echo "Download YoutubeSeriesDownloader service..."
@@ -71,6 +71,10 @@ curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/sonarr/na
 echo "Done"
 
 mkdir -p /config/extended
+echo "Download Script Functions..."
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal/functions.bash -o /config/extended/functions
+echo "Done"
+
 echo "Download PlexNotify script..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/sonarr/PlexNotify.bash -o /config/extended/PlexNotify.bash 
 echo "Done"
@@ -90,6 +94,13 @@ echo "Done"
 echo "Download Recyclarr config..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/sonarr/recyclarr.yaml -o /config/extended/recyclarr.yaml
 echo "Done"
+
+if [ ! -f /config/extended.conf ]; then
+	echo "Download Extended config..."
+	curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/sonarr/extended.conf -o /config/extended.conf
+	chmod 777 /config/extended.conf
+	echo "Done"
+fi
 
 chmod 777 -R /config/extended
 

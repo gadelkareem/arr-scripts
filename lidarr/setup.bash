@@ -65,14 +65,29 @@ echo "Download Audio service..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/Audio.service.bash -o /custom-services.d/Audio
 echo "Done"
 
+echo "Download AutoArtistAdder service..."
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/AutoArtistAdder.bash -o /custom-services.d/AutoArtistAdder
+echo "Done"
+
+echo "Download UnmappedFilesCleaner service..."
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/UnmappedFilesCleaner.bash -o /custom-services.d/UnmappedFilesCleaner
+echo "Done"
 
 mkdir -p /config/extended
+echo "Download Script Functions..."
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal/functions.bash -o /config/extended/functions
+echo "Done"
+
 echo "Download PlexNotify script..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/PlexNotify.bash -o /config/extended/PlexNotify.bash 
 echo "Done"
 
 echo "Download MetadataPostProcess script..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/MetadataPostProcess.bash -o /config/extended/MetadataPostProcess.bash
+echo "Done"
+
+echo "Download BeetsPostProcessor script..."
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/BeetsPostProcessor.bash -o /config/extended/BeetsPostProcessor.bash
 echo "Done"
 
 echo "Download SMA config..."
@@ -83,6 +98,20 @@ echo "Download Beets config..."
 curl "https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/beets-config.yaml" -o /config/extended/beets-config.yaml
 echo "Done"
 
+echo "Download Deemix config..."
+curl "https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/deemix_config.json" -o /config/extended/deemix_config.json
+echo "Done"
+
+echo "Download Tidal config..."
+curl "https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/tidal-dl.json" -o /config/extended/tidal-dl.json
+echo "Done"
+
+if [ ! -f /config/extended.conf ]; then
+	echo "Download Extended config..."
+	curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/extended.conf -o /config/extended.conf
+	chmod 777 /config/extended.conf
+	echo "Done"
+fi
 
 chmod 777 -R /config/extended
 

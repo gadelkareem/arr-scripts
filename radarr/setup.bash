@@ -16,7 +16,9 @@ apk add -U --update --no-cache \
   ffmpeg \
   yt-dlp && \
 echo "************ install python packages ************" && \
-pip install --upgrade --no-cache-dir -U yq && \
+pip install --upgrade --no-cache-dir -U \
+		excludarr \
+		yq && \
 echo "************ setup SMA ************" && \
 echo "************ setup directory ************" && \
 mkdir -p ${SMA_PATH} && \
@@ -52,10 +54,18 @@ curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/Au
 echo "Done"
 
 echo "Download Recyclarr service..."
-curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal/services/Recycalarr -o /custom-services.d/Recyclarr
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal/services/Recyclarr -o /custom-services.d/Recyclarr
+echo "Done"
+
+echo "Download UnmappedFolderCleaner service..."
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/UnmappedFolderCleaner.bash -o /custom-services.d/UnmappedFolderCleaner
 echo "Done"
 
 mkdir -p /config/extended
+echo "Download Script Functions..."
+curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal/functions.bash -o /config/extended/functions
+echo "Done"
+
 echo "Download Naming script..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/naming.json -o /config/extended/naming.json 
 echo "Done"
@@ -76,6 +86,14 @@ echo "Done"
 echo "Download Recyclarr config..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/recyclarr.yaml -o /config/extended/recyclarr.yaml
 echo "Done"
+
+if [ ! -f /config/extended.conf ]; then
+	echo "Download Extended config..."
+	curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/extended.conf -o /config/extended.conf
+	chmod 777 /config/extended.conf
+	echo "Done"
+fi
+
 
 chmod 777 -R /config/extended
 
